@@ -1,0 +1,53 @@
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import models,datasets,layers
+from tensorflow.keras.applications import MobileNetV2
+(train_images,train_labels),(test_images,test_labels) = datasets.cifar10.load_data()
+train_images,test_images = train_images/255.0,test_images/255.0
+class_names = ['aeroplane','automobile','bird','cat','deer','dog','frog','horse','ship','truck']
+plt.figure(figsize=(10,10))
+for i in range(10):
+    plt.subplot(5,5,i+1)
+    plt.xticks([])
+    plt.yticks([])
+    plt.grid(False)
+    plt.imshow(train_images[i])
+    plt.xlabel(class_names[train_labels[i][0]])
+
+plt.show()
+base_model = MobileNetV2(input_shape = (32,32,3),include_top=False,weights='imagenet')
+base_model.trainable = False
+model = models.Sequential([
+    base_model,
+    layers.Flatten(),
+    layers.Dense(64,activation="relu"),
+    layers.Dense(10)
+])
+model.compile(optimizer='adam',loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),metrics=["accuracy"])
+history = model.fit(train_images,train_labels,validation_data=(test_images,test_labels),epochs=10)
+base_model.trainable = True
+for layer in base_model.layers[:-10]:
+    layer.trainable = False
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),metrics=["accuracy"])
+history_fine = model.fit(train_images,train_labels,validation_data=(test_images,test_labels),epochs=10)
+plt.figure(figsize=(12, 4))
+
+# Plot training & validation accuracy values
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Train Accuracy')  # Training accuracy
+plt.plot(history.history['val_accuracy'], label='Val Accuracy')  # Validation accuracy
+plt.title('Model Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+
+# Plot training & validation loss values
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Train Loss')  # Training loss
+plt.plot(history.history['val_loss'], label='Val Loss')  # Validation loss
+plt.title('Model Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.show()

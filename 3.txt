@@ -1,0 +1,35 @@
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
+PATH_TO_DATA = "https://storage.googleapis.com/download.tensorflow.org/data/ecg.csv"
+data = pd.read_csv(PATH_TO_DATA,header=None)
+X_train,X_test = train_test_split(data,test_size=0.2,random_state=42)
+input_dim = X_train.shape[1]
+encoder = tf.keras.Sequential([
+    tf.keras.layers.Dense(64,activation="relu",input_shape=(input_dim,)),
+    tf.keras.layers.Dense(32,activation="relu"),
+    tf.keras.layers.Dense(16,activation="relu")
+])
+
+decoder = tf.keras.Sequential([
+    tf.keras.layers.Dense(32,activation="relu",input_shape=(16,)),
+    tf.keras.layers.Dense(64,activation="relu"),
+    tf.keras.layers.Dense(input_dim,activation="sigmoid")
+])
+autoencoder_input = tf.keras.Input(shape=(input_dim,))
+encoded = encoder(autoencoder_input)
+decoded = decoder(encoded)
+autoencoder = tf.keras.Model(autoencoder_input,decoded)
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+autoencoder.compile(optimizer=optimizer,loss="mse")
+autoencoder.fit(X_train,X_train,shuffle=True,batch_size=32,validation_data=(X_test,X_test),epochs=10)
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+autoencoder.compile(optimizer=optimizer,loss="mse")
+autoencoder.fit(X_train,X_train,shuffle=True,batch_size=32,validation_data=(X_test,X_test),epochs=10)
+encoded_X_test = encoder.predict(X_test)
+reconstructions = autoencoder.predict(X_test)
+mse = np.mean(np.power(X_test-reconstructions,2),axis=1)
+threshold = np.mean(mse) + 3 * np.std(mse)
+anomolies = np.where(mse>threshold)[0]
+print("Indices of anomolies:",anomolies)
